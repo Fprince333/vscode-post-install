@@ -37,4 +37,5 @@ If your VS Code theme requires settings to be re-enabled after an update, manual
    1. Opening the Command Palette [Cmd–Shift–P] and selecting `Tasks: Manage Automatic Tasks`, then `Allow Automatic Tasks`
    2. Opening `settings.json` and adding ```"task.allowAutomaticTasks": "on"```
 
-That's about it
+<p align="center"><img src="https://github-production-user-asset-6210df.s3.amazonaws.com/1648240/339787019-2593fe28-9a0f-4d68-884b-afd3b6259794.gif?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20240614%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20240614T134726Z&X-Amz-Expires=300&X-Amz-Signature=d513683ef498058394e93b230d389fb158ade3eaaf6c349c99fc8bfc2c81f7fa&X-Amz-SignedHeaders=host&actor_id=1648240&key_id=0&repo_id=815147224" alt="That's...that's about it." width="80%" /></p>
+
