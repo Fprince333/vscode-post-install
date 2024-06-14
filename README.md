@@ -1,2 +1,2 @@
-# vscode-post-install
-Auto-run commands post vscode update
+# Visual Studio Code - Post Install
+Auto-run commands after VS Code updates
