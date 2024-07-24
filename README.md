@@ -1,7 +1,8 @@
 # Visual Studio Code - Post Install
 Auto-run commands after VS Code updates
 
-https://github.com/user-attachments/assets/8c10a8b3-303c-4169-8c1b-94701aeb0f81
+![vscode-post-install mov](https://github.com/user-attachments/assets/fd1064f1-da16-417d-ada5-26537997b36b)
+
 
 ## Why would I need this?
 If your VS Code theme requires settings to be re-enabled after an update, manually triggering the Command Palette can get tiresome. We can avoid this by leveraging 
