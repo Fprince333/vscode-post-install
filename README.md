@@ -14,7 +14,7 @@ If your VS Code theme requires settings to be re-enabled after an update, manual
 1. Copy ```vscode-post-install.sh``` and paste it somewhere you won't forget (e.g. your `$HOME` directory)
 2. Copy ```reload_custom_stuff.applescript``` and paste it in the same place you put your shell script above. Or wherever you want to put it, but it's nice to keep things together.
 3. Copy ```tasks.json``` and paste it into your VS Code's `User` directory. 
-   - In my case, it's `/Users/willsmith/Library/Application Support/Code - Insiders/User`. 
+   - In my case, it's `/Users/willsmith/Library/Application\ Support/Code\ -\ Insiders/User`. 
    - If you already have this file and you want to keep what's in there, only copy the task and paste it into the array of ```"tasks"```
     ```
     "tasks": [
