@@ -4,9 +4,9 @@
     {
       "label": "Run Post-Install",
       "type": "shell",
-      "command": "/Users/willsmith/vscode-post-install.sh",
+      "command": "${env:HOME}/vscode-post-install.sh",
       "presentation": {
-        "reveal": "never",
+        "reveal": "silent",
         "panel": "shared"
       },
       "runOptions": {
