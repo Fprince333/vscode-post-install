@@ -2,6 +2,8 @@
 
 Reapply local workbench CSS after a VS Code Insiders update, quit it completely, and reopen it through macOS Launch Services.
 
+![VS Code Insiders applying custom CSS, quitting, and reopening](assets/vscode-post-install.gif)
+
 VS Code Insiders updates replace the application bundle and its workbench CSS. A VS Code user task runs this workflow when a folder opens, but the script only changes the app when the Insiders build identifier differs from the last successful run.
 
 ## How it works
