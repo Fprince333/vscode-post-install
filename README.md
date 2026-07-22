@@ -4,7 +4,7 @@ Reapply local workbench CSS after a VS Code Insiders update, quit it completely,
 
 ![VS Code Insiders applying custom CSS, quitting, and reopening](assets/vscode-post-install.gif)
 
-VS Code Insiders updates replace the application bundle and its workbench CSS. A VS Code user task runs this workflow when a folder opens, but the script only changes the app when the Insiders build identifier differs from the last successful run.
+VS Code Insiders updates replace the application bundle and its workbench CSS. A VS Code user task dispatches this workflow through `launchd` when a folder opens, but the worker only changes the app when the Insiders build identifier differs from the last successful run.
 
 ## How it works
 
@@ -14,7 +14,7 @@ The workflow changes this application resource:
 /Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css
 ```
 
-It replaces everything after VS Code's source-map footer with one marked custom CSS block, asks Insiders to quit by its bundle identity, waits up to 60 seconds for all bundle processes to stop, and reopens it with:
+The VS Code task exits after starting a one-shot `launchd` worker with `KeepAlive` disabled. That detached worker survives when Insiders terminates its integrated task shell, but it does not poll or restart after completion. It replaces everything after VS Code's source-map footer with one marked custom CSS block, asks Insiders to quit by its bundle identity, waits up to 60 seconds for all bundle processes to stop, and reopens it with:
 
 ```bash
 /usr/bin/open -b com.microsoft.VSCodeInsiders
@@ -48,13 +48,15 @@ The script uses `CUSTOM_CSS_FILE` when set, then `$HOME/source.css` when present
    cp tasks.json "$HOME/Library/Application Support/Code - Insiders/User/tasks.json"
    ```
 
-   If that file already exists, merge only the `Run Post-Install` task into its existing `tasks` array. The task uses `${env:HOME}`, so it does not contain a hard-coded username.
+   If that file already exists, merge only the `Run Post-Install` task into its existing `tasks` array. The task uses `${env:HOME}`, so it does not contain a hard-coded username. Keep the `--detach` argument: without it, quitting Insiders also terminates the script before it can relaunch the app.
 
 3. Enable automatic tasks. Run `Tasks: Manage Automatic Tasks` from the Command Palette and choose `Allow Automatic Tasks`, or add:
 
    ```json
    "task.allowAutomaticTasks": "on"
    ```
+
+The first detached run creates `$HOME/Library/LaunchAgents/com.fprince333.vscode-post-install.plist` automatically. It is a per-user, one-shot LaunchAgent and does not require administrator privileges.
 
 The build marker is written to `$HOME/.vscode_version` only after the complete quit/relaunch workflow succeeds. A failed run is retried the next time the task starts.
 
@@ -65,6 +67,8 @@ The build marker is written to `$HOME/.vscode_version` only after the complete q
 - `CODE_INSIDERS_BIN`: alternate `code-insiders` executable
 - `VSCODE_POST_INSTALL_VERSION_FILE`: alternate successful-build marker
 - `VSCODE_POST_INSTALL_LOG_FILE`: alternate log file; default `$HOME/Library/Logs/vscode-post-install.log`
+- `VSCODE_POST_INSTALL_LAUNCHD_LABEL`: alternate launchd job label; default `com.fprince333.vscode-post-install`
+- `VSCODE_POST_INSTALL_LOCK_DIRECTORY`: alternate worker lock directory
 - `SHUTDOWN_TIMEOUT_SECONDS`: quit timeout; default `60`
 - `RELAUNCH_TIMEOUT_SECONDS`: relaunch timeout; default `30`
 
@@ -76,13 +80,13 @@ Normal runs remain update-gated. Use `--force` for a manual repair or end-to-end
 
 ## Viewing logs and errors
 
-Every status and error message is shown in the task terminal and appended to this durable log:
+The task terminal shows the launchd handoff. Every worker status and error message is appended to this durable log:
 
 ```text
 $HOME/Library/Logs/vscode-post-install.log
 ```
 
-The file is the most reliable place to diagnose an automatic run because the workflow quits VS Code, which can discard the integrated task terminal's visible history. Show the latest messages in any terminal with:
+The file is the most reliable place to diagnose an automatic run because the detached worker continues after VS Code discards the integrated task terminal. Show the latest messages in any terminal with:
 
 ```bash
 tail -n 100 "$HOME/Library/Logs/vscode-post-install.log"
@@ -122,6 +126,18 @@ Confirm that no Insiders processes remain after shutdown:
 
 ```bash
 pgrep -afil '^/Applications/Visual Studio Code - Insiders.app/Contents/'
+```
+
+Inspect the detached worker registered for the current user:
+
+```bash
+launchctl print "gui/$(id -u)/com.fprince333.vscode-post-install"
+```
+
+Inspect the generated one-shot LaunchAgent configuration:
+
+```bash
+plutil -p "$HOME/Library/LaunchAgents/com.fprince333.vscode-post-install.plist"
 ```
 
 If the script reports that the workbench source-map footer is missing, VS Code's internal layout has changed. Do not append CSS blindly; update the target logic for that Insiders build. Reinstalling or updating VS Code Insiders restores the original Microsoft bundle and removes the customization.
