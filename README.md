@@ -4,7 +4,7 @@ Reapply local workbench CSS after a VS Code Insiders update, quit it completely,
 
 ![VS Code Insiders applying custom CSS, quitting, and reopening](assets/vscode-post-install.gif)
 
-VS Code Insiders updates replace the application bundle and its workbench CSS. A VS Code user task dispatches this workflow through `launchd` when a folder opens, but the worker only changes the app when the Insiders build identifier differs from the last successful run.
+VS Code Insiders updates replace the application bundle and its workbench CSS. When a folder opens, a VS Code user task checks the Insiders build and reapplies the CSS only when the build identifier differs from the last successful run. It then hands the quit/relaunch portion to `launchd` so that closing VS Code cannot terminate the workflow along with its integrated task shell.
 
 ## How it works
 
@@ -14,13 +14,15 @@ The workflow changes this application resource:
 /Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/out/vs/workbench/workbench.desktop.main.css
 ```
 
-The VS Code task exits after starting a one-shot `launchd` worker with `KeepAlive` disabled. That detached worker survives when Insiders terminates its integrated task shell, but it does not poll or restart after completion. It replaces everything after VS Code's source-map footer with one marked custom CSS block, asks Insiders to quit by its bundle identity, waits up to 60 seconds for all bundle processes to stop, and reopens it with:
+Before detaching, the VS Code task replaces everything after VS Code's source-map footer with one marked custom CSS block. It then starts a one-shot `launchd` worker with `KeepAlive` disabled. That worker verifies the prepared CSS, survives when Insiders terminates its integrated task shell, but does not poll or restart after completion. It asks Insiders to quit by its bundle identity, waits up to 60 seconds for all bundle processes to stop, and reopens it with:
 
 ```bash
 /usr/bin/open -b com.microsoft.VSCodeInsiders
 ```
 
 The script deliberately does not re-sign the app or modify `product.json`. Re-signing changes the application's code identity and causes macOS to request access to the existing `Code - Insiders Safe Storage` keychain item. Keeping Microsoft's original designated identity avoids that password prompt.
+
+The detached LaunchAgent never writes to the application bundle. macOS can deny a background LaunchAgent that write even when the current user owns the CSS file, so the password-free workflow performs the modification in the VS Code task before handing off only the shutdown and relaunch steps.
 
 Because the CSS is intentionally modified, `codesign --verify --deep --strict` reports `a sealed resource is missing or invalid`. For an already installed Insiders app, that diagnostic does not prevent Launch Services from reopening it. Insiders updates restore the original Microsoft-sealed bundle and overwrite the customization, which is why the task runs again after each update.
 
@@ -80,7 +82,7 @@ Normal runs remain update-gated. Use `--force` for a manual repair or end-to-end
 
 ## Viewing logs and errors
 
-The task terminal shows the launchd handoff. Every worker status and error message is appended to this durable log:
+The task terminal shows the CSS preparation and launchd handoff. Every status and error message from both phases is appended to this durable log:
 
 ```text
 $HOME/Library/Logs/vscode-post-install.log

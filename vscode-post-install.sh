@@ -285,18 +285,27 @@ apply_custom_css() {
     if /usr/bin/cmp -s "$temporary_css" "$workbench_css"; then
         log "Custom CSS is already current; no duplicate block was added."
     else
-        /bin/cp "$temporary_css" "$workbench_css" || fail "CSS modification failed while replacing $workbench_css."
+        local copy_error
+        if ! copy_error="$(/bin/cp "$temporary_css" "$workbench_css" 2>&1)"; then
+            fail "CSS modification failed while replacing $workbench_css: ${copy_error:-unknown copy error}"
+        fi
         log "Applied custom CSS to the VS Code Insiders workbench."
     fi
 
-    local start_count
-    local end_count
-    start_count="$(/usr/bin/grep -F -c "$CSS_START_MARKER" "$workbench_css" || true)"
-    end_count="$(/usr/bin/grep -F -c "$CSS_END_MARKER" "$workbench_css" || true)"
-    [ "$start_count" -eq 1 ] && [ "$end_count" -eq 1 ] || fail "CSS verification failed: expected exactly one marked custom CSS block."
+    verify_custom_css "$workbench_css"
 
     trap - RETURN
     /bin/rm -f "$temporary_css"
+}
+
+verify_custom_css() {
+    local workbench_css="$1"
+    local start_count
+    local end_count
+
+    start_count="$(/usr/bin/grep -F -c "$CSS_START_MARKER" "$workbench_css" || true)"
+    end_count="$(/usr/bin/grep -F -c "$CSS_END_MARKER" "$workbench_css" || true)"
+    [ "$start_count" -eq 1 ] && [ "$end_count" -eq 1 ] || fail "CSS verification failed: expected exactly one marked custom CSS block."
 }
 
 while [ "$#" -gt 0 ]; do
@@ -327,12 +336,10 @@ done
 
 if [ "$DETACH_RUN" -eq 1 ]; then
     trap cleanup EXIT
-    submit_detached_worker
-    exit 0
+else
+    trap cleanup EXIT
+    acquire_lock
 fi
-
-trap cleanup EXIT
-acquire_lock
 
 [ -d "$APP_PATH" ] || fail "VS Code Insiders was not found at $APP_PATH."
 [ -f "$QUIT_SCRIPT" ] || fail "Quit helper was not found at $QUIT_SCRIPT. Keep it beside this script."
@@ -364,8 +371,18 @@ elif [ "$FORCE_RUN" -ne 1 ]; then
     exit 0
 fi
 
-log "Customizing VS Code Insiders build $CURRENT_VERSION."
-apply_custom_css "$WORKBENCH_CSS" "$CUSTOM_CSS"
+if [ "$WORKER_RUN" -eq 1 ]; then
+    verify_custom_css "$WORKBENCH_CSS"
+    log "Verified the custom CSS prepared before the detached handoff."
+else
+    log "Customizing VS Code Insiders build $CURRENT_VERSION."
+    apply_custom_css "$WORKBENCH_CSS" "$CUSTOM_CSS"
+fi
+
+if [ "$DETACH_RUN" -eq 1 ]; then
+    submit_detached_worker
+    exit 0
+fi
 
 if [ "$APP_WAS_RUNNING" -eq 1 ]; then
     if ! /usr/bin/osascript "$QUIT_SCRIPT"; then
